@@ -37,12 +37,12 @@ const {Router} = require(express);
  createAdminrouter.get( "/course/bulk" , function( req ,res){
 
    res.json({
-     message:"admin show how many course he was created and other things"
+     message:"admin find out how  many course he was created and other things"
    })
 
  })
 
- module.exports{
+ module.exports={
    createAdminrouter
  }
  
