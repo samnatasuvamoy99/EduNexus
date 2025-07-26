@@ -1,51 +1,131 @@
-const {Router} = require(express);
- const  createAdminrouter = Router();
+const { Router } = require("express");
+const createAdminrouter = Router();
+const { adminModel } = require("../db");
+const bcrypt = require("bcrypt");
+require('dotenv').config();
+const JWT_SECRET_ADMIN = process.env.JWT_SECRET;
+const { z } = require("zod");
+const jwt = require("jsonwebtoken")
 
- createAdminrouter.post ( "/signup" , function( req ,res){
 
-   res.json({
-     message:"admin signup endpoint"
-   })
+createAdminrouter.post("/signup", async function (req, res) {
 
- })
+  // apply zod for input format style ;
+  const requirebody = z.object({
+    email: z.string().min(7).max(30).email(),
+    password: z.string().min(5).max(30),
+    firstName: z.string().min(5).max(30),
+    lastName: z.string().min(5).max(30)
 
-  createAdminrouter.post ("/sigin" , function( req ,res){
+  })
+  // success or not 
+  const parsedatawithsuccess = requirebody.safeParse(req.body); // take all data from the body section 
+  if (!parsedatawithsuccess.success) {
+    res.json({
+      message: " your input details are Invalid",
+      error: parsedatawithsuccess.error
+    })
+  }
 
-   res.json({
-     message:"admin sigin endpoint"
-   })
 
- })
+  const { email, password, firstName, lastName } = parsedatawithsuccess.data;
 
- createAdminrouter.post ( "/createcourse" , function( req ,res){
+  // apply bcrypt 
+  try {
+    const password1 = await bcrypt.hash(password, 5);
+    console.log(password1);
 
-   res.json({
-     message:"admin  endpoint create course"
-   })
+    await adminModel.create({
+      email,
+      password: password1,
+      firstName,
+      lastName
+    });
 
- })
- 
- createAdminrouter.put("/changecourse" , function( req ,res){
+    return res.status(201).json({
+      message: "✅ You are signed up successfully!",
+    });
+  }
+  catch (error) {
+    console.log("Signup problem:", error.message);
+    return res.status(500).json({
+      error: "Something went wrong. Please try again later.",
+    });
+  }
+})
 
-   res.json({
-     message:"admin  endpoint change  of the course title and thumbnail"
-   })
 
- })
- 
+createAdminrouter.post("/signin", async function (req, res) {
+  const email = req.body.email;
+  const password = req.body.password;
 
- createAdminrouter.get( "/course/bulk" , function( req ,res){
+  try {
+    const admin = await adminModel.findOne({
+      email
+    })
 
-   res.json({
-     message:"admin find out how  many course he was created and other things"
-   })
+    if (!admin) {
+      res.status(403).json({
+        message: " your emailid and password incorrect!!😒"
+      })
+    }
+    const passwordmatch = await bcrypt.compare(password, admin.password);
+    console.log(admin);
 
- })
+    if (passwordmatch) {
+             const token = jwt.sign({
+                 id:admin._id.toString()
+             },JWT_SECRET_ADMIN)
 
- module.exports={
-   createAdminrouter
- }
- 
+             res.json({
+                 token
+             })
+      console.log(token);
+    }
+    else{
+          res.json({
+               message:"invalid login details !!"
+          })
+    }
+  }
+  catch(error){
+       console.log("Invalid details " , error.messgae);
+       res.status(403).json({
+        messsage:"Your login details are invalid"
+       })    
+  }
+})
+
+createAdminrouter.post("/createcourse", function (req, res) {
+
+
+  res.json({
+    message: "admin  endpoint create course"
+  })
+
+})
+
+createAdminrouter.put("/changecourse", function (req, res) {
+
+  res.json({
+    message: "admin  endpoint change  of the course title and thumbnail"
+  })
+
+})
+
+
+createAdminrouter.get("course/bulk", function (req, res) {
+
+  res.json({
+    message: "admin find out how  many course he was created and other things"
+  })
+
+})
+
+module.exports = {
+  createAdminrouter
+}
+
 
 
 
