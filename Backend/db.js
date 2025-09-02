@@ -25,14 +25,14 @@ const courseSchema = new Schema({
          title: String ,
          description :String ,
          price:Number,
-          imageUrl:String,
-          creatorId:ObjectId
+         imageUrl:String,
+         creatorId:ObjectId
 })
 
 
 // purchases Schema 
   const purchsesSchema = new Schema({
-         title:String,
+        
         userId: ObjectId,
         courseId:ObjectId
 

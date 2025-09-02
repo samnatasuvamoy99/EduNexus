@@ -1,11 +1,13 @@
 const { Router } = require("express");
 const createAdminrouter = Router();
 const { adminModel } = require("../db");
+const { courseMOdel } = require("../db");
 const bcrypt = require("bcrypt");
 require('dotenv').config();
-const JWT_SECRET_ADMIN = process.env.JWT_SECRET;
+const JWT_SECRET_ADMIN = process.env.JWT_SECRET_ADMIN;
 const { z } = require("zod");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const { adminMiddleware } = require("../middleware/admin.js")
 
 
 createAdminrouter.post("/signup", async function (req, res) {
@@ -73,53 +75,137 @@ createAdminrouter.post("/signin", async function (req, res) {
     console.log(admin);
 
     if (passwordmatch) {
-             const token = jwt.sign({
-                 id:admin._id.toString()
-             },JWT_SECRET_ADMIN)
+      const token = jwt.sign({
+        id: admin._id.toString()
+      }, JWT_SECRET_ADMIN)
 
-             res.json({
-                 token
-             })
+      res.json({
+        token
+      })
       console.log(token);
     }
-    else{
-          res.json({
-               message:"invalid login details !!"
-          })
+    else {
+      res.json({
+        message: "invalid login details !!"
+      })
     }
   }
-  catch(error){
-       console.log("Invalid details " , error.messgae);
-       res.status(403).json({
-        messsage:"Your login details are invalid"
-       })    
+  catch (error) {
+    console.log("Invalid details ", error.messgae);
+    res.status(403).json({
+      messsage: "Your login details are invalid",
+      error: error.message
+    })
   }
 })
 
-createAdminrouter.post("/createcourse", function (req, res) {
 
+createAdminrouter.post("/createCourse", adminMiddleware, async function (req, res) {
+  try {
+    const adminId = req.adminId;
+    const { title, description, imageUrl, price } = req.body;
 
-  res.json({
-    message: "admin  endpoint create course"
-  })
+    if (!title || !description || !imageUrl || !price) {
+      return res.json({
+        message: "please Input valid details"
+      })
+    }
+    const course = await courseMOdel.create({
+      title, description, imageUrl, price, creatorId: adminId
+    })
+
+    res.json({
+      message: " you create a course successfully !!",
+      courseId: course._id
+      
+    })
+  } catch (error) {
+    return res.status(403).json({
+      message: "Invalid details or Expired token",
+      error: error.message
+
+    })
+  }
 
 })
 
-createAdminrouter.put("/changecourse", function (req, res) {
 
-  res.json({
-    message: "admin  endpoint change  of the course title and thumbnail"
-  })
+createAdminrouter.put("/changeCourseDetails", adminMiddleware, async function (req, res) {
+  const adminId = req.adminId;
+  console.log(adminId);
+  try {
+    const admin = { title, description, imageUrl, price, courseId } = req.body;
+    console.log(admin);
 
+    await courseMOdel.updateOne(
+      {
+        _id: courseId,
+        creatorId: adminId
+      },
+      {
+        title,
+        description,
+        imageUrl,
+        price
+      })
+
+    res.json({
+      message: "Edit your course successfully !!",
+      courseId
+    })
+  } catch (error) {
+    return res.status(403).json({
+      message: "Invalid details or Expired token",
+      error: error.message
+
+    })
+  }
 })
 
+createAdminrouter.get("/courseView", adminMiddleware, async function (req, res) {
 
-createAdminrouter.get("course/bulk", function (req, res) {
+  const adminId = req.adminId;
+  console.log(adminId);
+  try {
+    const course = await courseMOdel.findOne(
+      {
+        creatorId: adminId
+      });
+     
+         if ( !course){
+              res.json({
+                    message:"Something went wrong Please try again later"
+              })
+         }
 
-  res.json({
-    message: "admin find out how  many course he was created and other things"
-  })
+    res.json({
+      message: "view your course successfully !!",
+      course
+    })
+  } catch (error) {
+    return res.status(403).json({
+      message: "Invalid details or Expired token",
+      error: error.message
 
+    })
+  }
+})
+
+createAdminrouter.delete("/courseDelete", adminMiddleware, async function (req, res) {
+  try {
+    const courseId = req.courseId;
+    await courseMOdel.deleteOne({
+      courseId
+    })
+    res.status(200).json({
+      message: "Delete a course successfully "
+    })
+  } catch (error) {
+    return res.json({
+      message: "Something went to be wrong or Invalid token",
+      error: error.message
+    })
+  }
 })
 
 module.exports = {
